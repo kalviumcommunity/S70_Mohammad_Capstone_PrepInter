@@ -1,11 +1,13 @@
 # Project Title: PrepInter - AI Powered Mock Interview project
 
+// updated
+
 ## Idea Brief:
 In today’s competitive job market, interview preparation plays a crucial role in securing a dream job. However, many candidates struggle with a lack of structured mock interviews, real-time feedback, and personalized guidance. Traditional interview preparation methods, such as self-study or peer practice, often fail to provide a realistic interview experience.
 To bridge this gap, we are building PrepInter  an AI-powered mock interview web app that provides real-time, interactive, and intelligent mock interviews to help you practice and refine your interview skills. The platform will offer AI-generated interview questions, real-time feedback, and detailed performance analytics.
 
 ## Problem Statement
- Many peoples face difficulties in preparing for interviews due to:
+### Many peoples face difficulties in preparing for interviews due to:
 - Lack of access to professional mock interviews.
 - Limited or no real-time feedback on answers.
 - Inability to track progress and improvement areas.
@@ -16,7 +18,7 @@ To bridge this gap, we are building PrepInter  an AI-powered mock interview web 
 
 ## Solution Overview:
 PrepInter is designed to provide a personalized, data-driven interview preparation experience. The platform uses AI  to simulate real interview scenarios, analyze user responses, and provide instant feedback based on field and industries.
-## How It Works:
+### How It Works:
 - Users sign up and select a field.
 - The AI generates interview questions based on the selected field.
 - Users answer questions via text or voice input.
@@ -36,7 +38,7 @@ PrepInter is designed to provide a personalized, data-driven interview preparati
 
 ## Tech Stack: 
 
-##   Frontend:
+#    Frontend:
 
 - React.js – Component-based UI, SPA support, efficient rendering.
 - Redux Toolkit – For state management.
@@ -45,7 +47,7 @@ PrepInter is designed to provide a personalized, data-driven interview preparati
 - React Query – For optimized API fetching & caching.
 - Vercel/netlify –  For frontend deployment.
 
-##	Backend:
+#	Backend:
 
 - Node.js with Express.js – Lightweight, scalable backend for handling APIs.
 - MongoDB & mongoose  – For database management.
@@ -55,7 +57,7 @@ PrepInter is designed to provide a personalized, data-driven interview preparati
 - OpenAI API (GPT-4/LLM) – Generate AI-powered interview questions & feedback.
 - Render – For backend deployment.
 
-## Deployment & DevOps: 
+### Deployment & DevOps: 
 - Vercel/Netlify – For frontend deployment
 - MongoDB Atlas – For database hosting
 - Render – For backend hosting
@@ -92,4 +94,4 @@ Day 21-28
 - Frontend Deployment
 - Security & Optimization
 - Testing & Debugging
-- Final Deployment & Documentation
+-Final Deployment & Documentation
