@@ -11,7 +11,6 @@ const razorpay = new Razorpay({
 });
 
 // Create a new order
-
 const createOrder = asyncHandler(async (req, res) => {
   const { amount, currency = 'INR' } = req.body;
 
@@ -19,8 +18,8 @@ const createOrder = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Please provide an amount');
   }
-
   const orderId = `order_${Date.now()}_${req.user._id}`;
+
 
   // Create order in Razorpay
   const options = {
@@ -32,7 +31,6 @@ const createOrder = asyncHandler(async (req, res) => {
 
   try {
     const response = await razorpay.orders.create(options);
-
     // Save order details in database
     const payment = await Payment.create({
       userId: req.user._id,
