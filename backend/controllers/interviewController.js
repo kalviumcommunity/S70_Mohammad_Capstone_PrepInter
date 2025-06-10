@@ -2,7 +2,6 @@ const asyncHandler = require('express-async-handler');
 const Interview = require('../models/interviewModel');
 const User = require('../models/userModel');
 const axios = require('axios');
-const { deleteUser } = require('./userController');
 
 const startInterview = asyncHandler(async (req, res) => {
   const { category, difficulty } = req.body;

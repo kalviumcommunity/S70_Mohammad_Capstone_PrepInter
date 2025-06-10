@@ -241,14 +241,20 @@ const updateUser = asyncHandler(async (req, res) => {
 const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
-  if (user) {
-    await user.remove();
-    res.json({ message: 'User removed' });
-  } else {
+  if (!user) {
     res.status(404);
     throw new Error('User not found');
   }
+  // Only admin or the user themselves can delete the account
+  if (!req.user || (req.user._id.toString() !== req.params.id && !req.user.isAdmin)) {
+    res.status(403);
+    throw new Error('Not authorized to delete this user');
+  }
+
+  await User.deleteOne({ _id: req.params.id });
+  res.json({ message: 'User removed' });
 });
+
 
 module.exports = {registerUser, loginUser, forgotPassword, verifyOTP, resetPassword, 
   getUsers, getUserProfile, getUserById, updateUserProfile, updateUser, deleteUser};
