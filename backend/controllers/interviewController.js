@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Interview = require('../models/interviewModel');
 const User = require('../models/userModel');
 const axios = require('axios');
+const { deleteUser } = require('./userController');
 
 const startInterview = asyncHandler(async (req, res) => {
   const { category, difficulty } = req.body;
@@ -122,4 +123,22 @@ const startInterview = asyncHandler(async (req, res) => {
   res.status(201).json(interview);
 });
 
-module.exports = { startInterview }
+const deleteInterview = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+
+  if (!interview) {
+    res.status(404);
+    throw new Error('Interview not found');
+  }
+
+  // Check if the interview belongs to the user
+  if (interview.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    res.status(401);
+    throw new Error('Not authorized to delete this interview');
+  }
+
+  await interview.remove();
+  res.json({ message: 'Interview removed' });
+});
+
+module.exports = { startInterview , deleteInterview }
