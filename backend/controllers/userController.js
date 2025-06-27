@@ -245,20 +245,16 @@ const deleteUser = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('User not found');
   }
-  // Authorization check: allow admin or account owner
-  const isOwner = req.user?._id?.toString() === req.params.id;
-  const isAdmin = req.user?.isAdmin === true;
 
-  if (!isAdmin && !isOwner) {
+  // Only admin or the user themselves can delete the account
+  if (!req.user || (req.user._id.toString() !== req.params.id && !req.user.isAdmin)) {
     res.status(403);
     throw new Error('Not authorized to delete this user');
   }
-  // Safe deletion using fetched user object
-  await user.deleteOne();
 
+  await User.deleteOne({ _id: req.params.id });
   res.json({ message: 'User removed' });
 });
-
 
 
 module.exports = {registerUser, loginUser, forgotPassword, verifyOTP, resetPassword, 
