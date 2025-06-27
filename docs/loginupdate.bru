@@ -1,0 +1,22 @@
+meta {
+  name: loginupdate
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:5000/api/users/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDE1MzJmMWRiMDk3ODk1ZDIzMjA1NSIsImlhdCI6MTc0OTExMTgzNiwiZXhwIjoxNzUxNzAzODM2fQ.YpvWH93hLTsRWtudJKTvpHB6xMdFd9_ZYXITC3V2FLc
+}
+
+body:json {
+  {
+    "name": "Updated Hasan",
+    "email": "newemail@example.com"
+  }
+}

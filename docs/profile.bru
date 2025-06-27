@@ -1,0 +1,15 @@
+meta {
+  name: profile
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://localhost:5000/api/users/profile
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDE1MzJmMWRiMDk3ODk1ZDIzMjA1NSIsImlhdCI6MTc0OTExMTU5OSwiZXhwIjoxNzUxNzAzNTk5fQ.zfvFZOEX6X-ZJhFcuRDQhDIEgVKGgRQdM-rkm26IzCg
+}
