@@ -1,0 +1,455 @@
+const asyncHandler = require('express-async-handler');
+const { OpenAI } = require('openai');
+const Interview = require('../models/interviewModel');
+const User = require('../models/userModel');
+
+// Initialize Groq client
+const groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1'
+});
+
+// Function to generate questions using Groq LLM
+const generateQuestions = async (category, difficulty, count = 5) => {
+    try {
+        const prompt = `Generate ${count} interview questions for a ${difficulty} level ${category} interview. 
+                       Format each question as a JSON object with properties: 
+                       questionText (the actual question) and 
+                       explanation (brief guidelines for answering).
+                       Return only the JSON array.`;
+
+        const response = await groq.chat.completions.create({
+            model: "mixtral-8x7b-32768",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert technical interviewer. Generate challenging and relevant interview questions."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            temperature: 0.7
+        });
+
+        // Parse the response and ensure it's in the correct format
+        let questions;
+        try {
+            const content = response.choices[0].message.content;
+            questions = JSON.parse(content);
+        } catch (error) {
+            console.error('Error parsing LLM response:', error);
+            // Fallback to default questions if parsing fails
+            questions = getFallbackQuestions(category, count);
+        }
+
+        return questions;
+    } catch (error) {
+        console.error('Error generating questions:', error);
+        return getFallbackQuestions(category, count);
+    }
+};
+  const baseText = post.title || post.body?.split('.')[0] || '';
+  let questionText = '';
+  
+  switch(category.toLowerCase()) {
+    case 'technical':
+      questionText = `Explain how you would implement ${baseText} in a real-world application.`;
+      break;
+    case 'behavioral':
+      questionText = `Tell me about a time when you had to deal with ${baseText} at work.`;
+      break;
+    case 'situational':
+      questionText = `How would you handle a situation where ${baseText.toLowerCase()}?`;
+      break;
+    case 'softskills':
+      questionText = `How do you approach ${baseText} in your professional work?`;
+      break;
+    default:
+      questionText = baseText;
+  }
+
+  // Add difficulty-based follow-up
+  if (difficulty === 'intermediate') {
+    questionText += ' What challenges would you anticipate and how would you address them?';
+  } else if (difficulty === 'advanced') {
+    questionText += ' What are the long-term implications and how would you measure success?';
+  }
+
+  return {
+    questionText,
+    category,
+    difficulty,
+    aiGenerated: true,
+    answer: '',
+    feedback: '',
+    skipped: false
+  };
+};
+
+// Fallback questions when API fails
+const getFallbackQuestions = (category, difficulty) => {
+  const questions = {
+    // technical: [
+    //   "Explain the difference between let, const, and var in JavaScript.",
+    //   "What are promises and async/await in JavaScript?",
+    //   "How does the event loop work in Node.js?",
+    //   "What is RESTful API architecture?",
+    //   "Explain the concept of middleware in Express.js.",
+    //   "What are the key features of React hooks?",
+    //   "Describe the difference between SQL and NoSQL databases.",
+    //   "How do you handle authentication in a Node.js application?",
+    //   "What is the purpose of indexes in databases?",
+    //   "Explain the concept of dependency injection."
+    // ],
+    // behavioral: [
+    //   "Describe a challenging project you worked on.",
+    //   "How do you handle conflicts in a team?",
+    //   "Tell me about a time you had to learn something quickly.",
+    //   "How do you prioritize your tasks?",
+    //   "Describe a situation where you showed leadership.",
+    //   "Tell me about a time you failed and what you learned.",
+    //   "How do you handle feedback?",
+    //   "Describe a successful project you led.",
+    //   "How do you handle tight deadlines?",
+    //   "Tell me about a time you went above and beyond."
+    // ],
+    // situational: [
+    //   "How would you handle a production outage?",
+    //   "What would you do if you disagree with your team lead?",
+    //   "How would you handle an underperforming team member?",
+    //   "What would you do if you're falling behind on deadlines?",
+    //   "How would you handle unclear requirements?",
+    //   "What would you do if you found a critical bug in production?",
+    //   "How would you handle a difficult client?",
+    //   "What would you do if you spotted inefficiencies in the process?",
+    //   "How would you handle conflicting priorities?",
+    //   "What would you do if you received contradicting feedback?"
+    // ],
+    // softskills: [
+    //   "How do you stay updated with new technologies?",
+    //   "What's your approach to documentation?",
+    //   "How do you handle work-life balance?",
+    //   "What's your communication style with non-technical stakeholders?",
+    //   "How do you contribute to team culture?",
+    //   "What's your approach to mentoring others?",
+    //   "How do you handle stress at work?",
+    //   "What's your approach to problem-solving?",
+    //   "How do you handle ambiguous situations?",
+    //   "What's your strategy for continuous learning?"
+    // ]
+  };
+
+  const questions_array = (questions[category.toLowerCase()] || questions.technical).map(q => ({
+    questionText: q,
+    category: category,
+    difficulty: difficulty,
+    aiGenerated: false,
+    answer: '',
+    feedback: '',
+    skipped: false
+  }));
+
+  // Add difficulty-based follow-up to each question
+  return questions_array.map(q => {
+    if (difficulty === 'intermediate') {
+      q.questionText += ' What challenges would you anticipate and how would you address them?';
+    } else if (difficulty === 'advanced') {
+      q.questionText += ' What are the long-term implications and how would you measure success?';
+    }
+    return q;
+  });
+};
+
+// Function to fetch questions from JSON Server (Mock API)
+async function fetchQuestionsFromAPI(category, difficulty) {
+  try {
+    // Using JSONPlaceholder API as a mock data source
+    const response = await axios.get('https://jsonplaceholder.typicode.com/posts?_limit=15');
+    
+    if (!response.data || !Array.isArray(response.data)) {
+      throw new Error('Failed to fetch data from API');
+    }
+
+    // Transform the posts into interview questions based on category and difficulty
+    return response.data.map(post => {
+      let questionText = '';
+      const baseText = post.title || post.body?.split('.')[0] || '';
+      
+      switch(category.toLowerCase()) {
+        case 'technical':
+          questionText = `How would you implement a system to ${baseText.toLowerCase()}?`;
+          break;
+        case 'behavioral':
+          questionText = `Tell me about a time when you had to handle ${baseText.toLowerCase()}.`;
+          break;
+        case 'situational':
+          questionText = `What would you do if you encountered ${baseText.toLowerCase()}?`;
+          break;
+        case 'softskills':
+          questionText = `How do you approach situations involving ${baseText.toLowerCase()}?`;
+          break;
+        default:
+          questionText = baseText;
+      }
+
+      // Add difficulty-based follow-up
+      if (difficulty === 'intermediate') {
+        questionText += ' What challenges would you anticipate and how would you address them?';
+      } else if (difficulty === 'advanced') {
+        questionText += ' What are the long-term implications and how would you ensure scalability?';
+      }
+
+      return {
+        questionText: questionText,
+        category: category,
+        difficulty: difficulty,
+        aiGenerated: true,
+        answer: '',
+        feedback: '',
+        skipped: false
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching questions:', error.message);
+    // Return fallback questions if API fails
+    const fallbackQuestions = getFallbackQuestions(category, difficulty);
+    if (!fallbackQuestions) {
+      return getFallbackQuestions('technical', 'beginner'); // Ultimate fallback
+    }
+    return fallbackQuestions;
+  }
+}
+
+// Controller: start a new interview
+const startInterview = asyncHandler(async (req, res) => {
+  const { category, difficulty } = req.body;
+  const validCategories = ['behavioral', 'technical', 'situational', 'softskills'];
+  const validDifficulties = ['beginner', 'intermediate', 'advanced'];
+
+  // Validate inputs
+  if (!category || !validCategories.includes(category.toLowerCase())) {
+    res.status(400);
+    throw new Error('Invalid category. Please provide one of: behavioral, technical, situational, or softskills');
+  }
+
+  if (!difficulty || !validDifficulties.includes(difficulty.toLowerCase())) {
+    res.status(400);
+    throw new Error('Invalid difficulty. Please provide one of: beginner, intermediate, or advanced');
+  }
+
+  try {
+    // Mark stale interviews as completed
+    await Interview.updateMany(
+      {
+        userId: req.user._id,
+        completed: false,
+        startedAt: { $lte: new Date(Date.now() - 60 * 60 * 1000) }
+      },
+      { 
+        $set: { 
+          completed: true, 
+          completedAt: new Date(),
+          status: 'timeout'
+        } 
+      }
+    );
+
+    // Check for active interview
+    const activeInterview = await Interview.findOne({
+      userId: req.user._id,
+      completed: false
+    });
+
+    if (activeInterview) {
+      res.status(400);
+      throw new Error('You already have an active interview. Please complete it first.');
+    }
+
+    // Fetch questions with retries
+    let questions = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries && !questions) {
+      try {
+        questions = await fetchQuestionsFromAPI(category, difficulty);
+        if (!questions || questions.length === 0) {
+          throw new Error('No questions received from API');
+        }
+        break;
+      } catch (error) {
+        retryCount++;
+        console.log(`Attempt ${retryCount} failed: ${error.message}`);
+        
+        if (retryCount === maxRetries) {
+          // Use fallback questions on final retry
+          questions = getFallbackQuestions(category, difficulty);
+          break;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
+
+    // Create new interview
+    const interview = await Interview.create({
+      userId: req.user._id,
+      category: category.toLowerCase(),
+      difficulty: difficulty.toLowerCase(),
+      questions,
+      status: 'active',
+      metadata: {
+        source: questions[0].aiGenerated ? 'api' : 'fallback',
+        questionCount: questions.length,
+        fetchAttempts: retryCount + 1
+      }
+    });
+
+    // Increment user's interview count
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { interviewsTaken: 1 } },
+      { new: true }
+    );
+
+    res.status(201).json({
+      success: true,
+      interview: {
+        id: interview._id,
+        category: interview.category,
+        difficulty: interview.difficulty,
+        questionsCount: interview.questions.length,
+        startedAt: interview.startedAt,
+        completed: interview.completed,
+        status: interview.status
+      }
+    });
+  } catch (error) {
+    console.error('Error in startInterview:', error);
+    if (!res.statusCode || res.statusCode === 200) {
+      res.status(500);
+    }
+    throw new Error(error.message || 'Failed to start interview. Please try again.');
+  }
+});
+
+// Get all interviews for logged in user
+const getInterviews = asyncHandler(async (req, res) => {
+  const interviews = await Interview.find({ userId: req.user._id })
+    .sort({ createdAt: -1 });
+  res.json(interviews);
+});
+
+// Get interview by ID
+const getInterviewById = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+  
+  if (!interview) {
+    res.status(404);
+    throw new Error('Interview not found');
+  }
+
+  // Check for user ownership
+  if (interview.userId.toString() !== req.user._id.toString()) {
+    res.status(401);
+    throw new Error('Not authorized to access this interview');
+  }
+
+  res.json(interview);
+});
+
+// Update interview
+const updateInterview = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+
+  if (!interview) {
+    res.status(404);
+    throw new Error('Interview not found');
+  }
+
+  if (interview.userId.toString() !== req.user._id.toString()) {
+    res.status(401);
+    throw new Error('Not authorized to update this interview');
+  }
+
+  const updatedInterview = await Interview.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
+
+  res.json(updatedInterview);
+});
+
+// Delete interview
+const deleteInterview = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+
+  if (!interview) {
+    res.status(404);
+    throw new Error('Interview not found');
+  }
+
+  if (interview.userId.toString() !== req.user._id.toString()) {
+    res.status(401);
+    throw new Error('Not authorized to delete this interview');
+  }
+
+  await interview.deleteOne();
+  res.json({ id: req.params.id });
+});
+
+// Complete interview
+const completeInterview = asyncHandler(async (req, res) => {
+  const interview = await Interview.findById(req.params.id);
+
+  if (!interview) {
+    res.status(404);
+    throw new Error('Interview not found');
+  }
+
+  if (interview.userId.toString() !== req.user._id.toString()) {
+    res.status(401);
+    throw new Error('Not authorized to complete this interview');
+  }
+
+  interview.completed = true;
+  interview.completedAt = new Date();
+  await interview.save();
+
+  res.json(interview);
+});
+
+// Skip question
+const skipQuestion = asyncHandler(async (req, res) => {
+  const interview = await Interview.findOne({
+    userId: req.user._id,
+    completed: false
+  }).sort({ createdAt: -1 });
+
+  if (!interview) {
+    res.status(404);
+    throw new Error('No active interview found');
+  }
+
+  const currentQuestion = interview.questions.find(q => !q.answer && !q.skipped);
+  if (currentQuestion) {
+    currentQuestion.skipped = true;
+  }
+
+  await interview.save();
+  res.json(interview);
+});
+
+module.exports = {
+  startInterview,
+  getInterviews,
+  getInterviewById,
+  updateInterview,
+  deleteInterview,
+  completeInterview,
+  skipQuestion
+};
