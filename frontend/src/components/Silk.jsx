@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { forwardRef, useRef, useMemo, useLayoutEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Color } from 'three';
 
 const hexToNormalizedRGB = hex => {
@@ -50,27 +51,28 @@ vec2 rotateUvs(vec2 uv, float angle) {
 }
 
 void main() {
-  float rnd        = noise(gl_FragCoord.xy);
+  float rnd        = noise(gl_FragCoord.xy * 0.5);
   vec2  uv         = rotateUvs(vUv * uScale, uRotation);
   vec2  tex        = uv * uScale;
-  float tOffset    = uSpeed * uTime;
+  float tOffset    = uSpeed * uTime * 0.5;
 
-  tex.y += 0.03 * sin(8.0 * tex.x - tOffset);
+  tex.y += 0.02 * sin(6.0 * tex.x - tOffset);
 
-  float pattern = 0.6 +
-                  0.4 * sin(5.0 * (tex.x + tex.y +
-                                   cos(3.0 * tex.x + 5.0 * tex.y) +
-                                   0.02 * tOffset) +
-                           sin(20.0 * (tex.x + tex.y - 0.1 * tOffset)));
+  float pattern = 0.7 +
+                  0.3 * sin(4.0 * (tex.x + tex.y +
+                                   cos(2.0 * tex.x + 4.0 * tex.y) +
+                                   0.015 * tOffset) +
+                           sin(15.0 * (tex.x + tex.y - 0.08 * tOffset)));
 
-  vec4 col = vec4(uColor, 1.0) * vec4(pattern) - rnd / 15.0 * uNoiseIntensity;
+  vec4 col = vec4(uColor, 1.0) * vec4(pattern) - rnd * 0.05 * uNoiseIntensity;
   col.a = 1.0;
   gl_FragColor = col;
 }
 `;
 
-const SilkPlane = forwardRef(function SilkPlane({ uniforms }, ref) {
+const SilkPlane = forwardRef(function SilkPlane({ uniforms, scrollStrength = 0.2 }, ref) {
   const { viewport } = useThree();
+  const [scrollY, setScrollY] = useState(0);
 
   useLayoutEffect(() => {
     if (ref.current) {
@@ -78,23 +80,37 @@ const SilkPlane = forwardRef(function SilkPlane({ uniforms }, ref) {
     }
   }, [ref, viewport]);
 
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY || 0);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   useFrame((_, delta) => {
-    ref.current.material.uniforms.uTime.value += 0.1 * delta;
+    // Smoother time evolution with frame-rate independent animation
+    ref.current.material.uniforms.uTime.value += delta * 2.0;
+    // Smoother rotation interpolation
+    const targetRot = (scrollY * 0.0003) % (Math.PI * 2);
+    const rot = ref.current.material.uniforms.uRotation.value;
+    ref.current.material.uniforms.uRotation.value = rot + (targetRot - rot) * (scrollStrength * 0.8);
   });
 
   return (
     <mesh ref={ref}>
-      <planeGeometry args={[1, 1, 1, 1]} />
+      <planeGeometry args={[1, 1]} />
       <shaderMaterial
         uniforms={uniforms}
         vertexShader={vertexShader}
-        fragmentShader={fragmentShader} />
+        fragmentShader={fragmentShader}
+        transparent={false}
+        depthWrite={false}
+        depthTest={false} />
     </mesh>
   );
 });
 SilkPlane.displayName = 'SilkPlane';
 
-const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, rotation = 0 }) => {
+const Silk = ({ speed = 4, scale = 1, color = '#7B7481', noiseIntensity = 1, rotation = 0, scrollStrength = 0.15 }) => {
   const meshRef = useRef();
 
   const uniforms = useMemo(() => ({
@@ -107,8 +123,19 @@ const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, r
   }), [speed, scale, noiseIntensity, color, rotation]);
 
   return (
-    <Canvas dpr={[1, 2]} frameloop="always">
-      <SilkPlane ref={meshRef} uniforms={uniforms} />
+    <Canvas 
+      dpr={[1, 1.5]} 
+      frameloop="always" 
+      gl={{ 
+        antialias: true, 
+        powerPreference: 'high-performance',
+        alpha: false,
+        depth: false,
+        stencil: false
+      }}
+      performance={{ min: 0.5 }}
+    >
+      <SilkPlane ref={meshRef} uniforms={uniforms} scrollStrength={scrollStrength} />
     </Canvas>
   );
 };
